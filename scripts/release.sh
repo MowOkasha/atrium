@@ -18,6 +18,8 @@ gh release create "v$VERSION" "$ZIP" --title "Atrium $VERSION" --generate-notes
 
 TAP_DIR=$(mktemp -d)
 gh repo clone "$TAP_REPO" "$TAP_DIR" -- -q
+git -C "$TAP_DIR" config user.email "$(git config user.email)"
+git -C "$TAP_DIR" config user.name "$(git config user.name)"
 mkdir -p "$TAP_DIR/Casks"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__SHA256__/$SHA/" Casks/atrium.rb.template > "$TAP_DIR/Casks/atrium.rb"
 git -C "$TAP_DIR" add Casks/atrium.rb
