@@ -1,0 +1,25 @@
+cask "atrium" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/MowOkasha/atrium/releases/download/v#{version}/Atrium-#{version}.zip"
+  name "Atrium"
+  desc "Give your macOS desktops names and keep your windows in place"
+  homepage "https://github.com/MowOkasha/atrium"
+
+  depends_on macos: ">= :tahoe"
+
+  app "Atrium.app"
+
+  # Atrium is ad-hoc signed (not notarized), so clear the download quarantine flag.
+  postflight do
+    system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/Atrium.app"]
+  end
+
+  uninstall quit: "io.github.mowokasha.atrium"
+
+  zap trash: [
+    "~/Library/Application Support/Atrium",
+    "~/Library/Preferences/io.github.mowokasha.atrium.plist",
+  ]
+end
