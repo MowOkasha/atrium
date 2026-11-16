@@ -14,7 +14,10 @@ import ApplicationServices
         model.start()
         for (name, page) in [("menu-desktops", Page.desktops), ("menu-settings", Page.settings)] {
             model.page = page
-            if page == .desktops { model.hoveredID = model.desktops.dropFirst().first?.id }
+            if page == .desktops {
+                model.hoveredID = model.desktops.dropFirst().first?.id
+                if args.contains("--no-permission") { model.debugPretendNoPermission() }
+            }
             render(MenuView().environmentObject(model), to: dir.appendingPathComponent(name + ".png"))
         }
         render(BannerView(title: "Projects", count: 5, index: 2), to: dir.appendingPathComponent("banner.png"))

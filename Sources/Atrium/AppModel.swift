@@ -34,6 +34,8 @@ final class AppModel: ObservableObject {
     @Published var editingID: String?
     @Published var hoveredID: String?
     @Published var draft = ""
+    @Published private(set) var permissionPulse = false
+    @Published var orderTipDismissed: Bool { didSet { defaults.set(orderTipDismissed, forKey: Keys.orderTipDismissed) } }
     @Published private(set) var toast: String?
     @Published private(set) var layoutSavedAt: Date?
     @Published private(set) var isWorking = false
@@ -51,6 +53,8 @@ final class AppModel: ObservableObject {
         static let names = "desktopNames"
         static let banner = "showBanner"
         static let nameInMenuBar = "showNameInMenuBar"
+        static let orderTipDismissed = "orderTipDismissed"
+        static let promptedAccessibility = "promptedAccessibility"
     }
 
     private let defaults = UserDefaults.standard
@@ -63,6 +67,7 @@ final class AppModel: ObservableObject {
         names = defaults.dictionary(forKey: Keys.names) as? [String: String] ?? [:]
         showBanner = defaults.bool(forKey: Keys.banner)
         showNameInMenuBar = defaults.bool(forKey: Keys.nameInMenuBar)
+        orderTipDismissed = defaults.bool(forKey: Keys.orderTipDismissed)
         layoutSavedAt = WindowLayouts.load()?.savedAt
     }
 
@@ -170,11 +175,7 @@ final class AppModel: ObservableObject {
     func switchTo(_ d: Desktop) {
         editingID = nil
         guard d.id != currentID else { closeMenu?(); return }
-        guard accessibilityGranted || AXIsProcessTrusted() else {
-            page = .settings
-            showToast("Allow Accessibility so Atrium can switch desktops")
-            return
-        }
+        guard requireAccessibility() else { return }
         let from = current
         closeMenu?()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { DesktopSwitcher.go(to: d, from: from) }
@@ -273,18 +274,27 @@ final class AppModel: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
+    /// Checks Accessibility; if it's missing, points at the permission card instead of acting.
     @discardableResult
     private func requireAccessibility() -> Bool {
-        if AXIsProcessTrusted() { accessibilityGranted = true; return true }
-        page = .settings
-        showToast("Allow Accessibility to arrange windows")
+        accessibilityGranted = AXIsProcessTrusted()
+        if accessibilityGranted { return true }
+        permissionPulse = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.permissionPulse = false }
         return false
     }
 
+    #if DEBUG
+    func debugPretendNoPermission() { accessibilityGranted = false }
+    #endif
+
     func requestAccessibility() {
-        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-        if !AXIsProcessTrustedWithOptions(options) {
+        if defaults.bool(forKey: Keys.promptedAccessibility) {
+            // macOS only shows its own prompt once per app, so go straight to the right pane.
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        } else {
+            defaults.set(true, forKey: Keys.promptedAccessibility)
+            _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         }
         permissionTimer?.invalidate()
         var ticks = 0

@@ -41,6 +41,12 @@ struct DesktopsPage: View {
             .padding(.horizontal, 6)
             .padding(.top, 2)
 
+            if !model.accessibilityGranted {
+                PermissionCard()
+            } else if !model.keepOrder && !model.orderTipDismissed {
+                OrderTipCard()
+            }
+
             rows
 
             GlassEffectContainer(spacing: 8) {
@@ -174,6 +180,76 @@ struct DesktopRow: View {
         }
         .foregroundStyle(isCurrent ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
         .frame(width: 22, height: 22)
+    }
+}
+
+// MARK: - Inline cards
+
+/// Shown until Atrium has Accessibility; tapping a desktop or Save Layout without it makes this card pulse.
+struct PermissionCard: View {
+    @EnvironmentObject var model: AppModel
+    private var pulse: Bool { model.permissionPulse }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "hand.raised.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(.tint))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("One permission needed")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Allow Accessibility so Atrium can switch desktops and move windows.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 4)
+            Button("Allow") { model.requestAccessibility() }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.accentColor.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .strokeBorder(Color.accentColor.opacity(pulse ? 0.9 : 0.25), lineWidth: pulse ? 2 : 1))
+        .scaleEffect(pulse ? 1.03 : 1)
+        .animation(.spring(duration: 0.3, bounce: 0.5), value: pulse)
+    }
+}
+
+/// Offers to stop macOS from reordering desktops — the reason they "shuffle".
+struct OrderTipCard: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "shuffle")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(Color.primary.opacity(0.08)))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("macOS is reordering your desktops")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Keep them in a fixed order?")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Button("Fix") { model.setKeepOrder(true) }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+            Button { model.orderTipDismissed = true } label: {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .bold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tertiary)
+            .help("Dismiss")
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.primary.opacity(0.05)))
     }
 }
 
